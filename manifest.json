@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "SimSloth 🦥",
+  "version": "1.1",
+  "description": "Der faule Weg von Flightradar24 zu SimBrief. Klick & fertig.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icons/icon.png"
+    }
+  },
+  "icons": {
+    "128": "icons/icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.flightradar24.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

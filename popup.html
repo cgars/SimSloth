@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 320px; font-family: sans-serif; padding: 15px; background: #f4f4f4; }
+    h3 { margin: 0 0 15px 0; text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+    .row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .col { flex: 1; }
+    label { display: block; font-size: 10px; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; color: #555;}
+    
+    input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-weight: bold; color: #333;}
+    
+    /* Leere Felder sollen leicht gräulich wirken, gefüllte schwarz (Standard Browser Verhalten) */
+    ::placeholder { color: #ccc; font-weight: normal; }
+
+    /* ATC Callsign Feld hervorheben */
+    #input_callsign { background-color: #e6f2ff; border-color: #0078d4; }
+
+    button { width: 100%; padding: 10px; cursor: pointer; border-radius: 4px; border: none; font-weight: bold;}
+    
+    #btn_send { background: #0078d4; color: white; margin-top: 10px; }
+    #btn_load { background: #ddd; color: #333; margin-top: 5px; font-size: 11px; padding: 5px;}
+    
+    #status { margin-top: 10px; font-size: 11px; text-align: center; min-height: 15px; color: #d32f2f; }
+  </style>
+</head>
+<body>
+  <h3>FR24 ➡️ SimBrief</h3>
+  
+  <div class="row">
+    <div class="col">
+      <label>Flug (IATA)</label>
+      <input type="text" id="input_iata" placeholder="XX123">
+    </div>
+    <div class="col">
+      <label>ATC Callsign</label>
+      <input type="text" id="input_callsign" placeholder="XXX123YY">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <label>Start</label>
+      <input type="text" id="input_orig" placeholder="AAAA">
+    </div>
+    <div class="col">
+      <label>Ziel</label>
+      <input type="text" id="input_dest" placeholder="BBBB">
+    </div>
+  </div>
+
+  <button id="btn_send">An SimBrief senden</button>
+  <button id="btn_load">Daten neu laden</button>
+  
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

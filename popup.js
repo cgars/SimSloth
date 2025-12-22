@@ -1,93 +1,194 @@
-document.addEventListener('DOMContentLoaded', function() {
-    
-    // Hilfsfunktion: Elemente sicher holen
-    const iataInput = document.getElementById('input_iata');
-    const callsignInput = document.getElementById('input_callsign');
-    const origInput = document.getElementById('input_orig');
-    const destInput = document.getElementById('input_dest');
-    const statusDiv = document.getElementById('status');
-    const loadBtn = document.getElementById('btn_load');
-    const sendBtn = document.getElementById('btn_send'); // Hier suchen wir den Button
+// ============================================
+// DOM ELEMENT REFERENCES
+// ============================================
 
-    // --- DATEN LADEN ---
-    function datenHolen() {
-        if(statusDiv) statusDiv.innerText = "Lese...";
+const DOM = {
+    iataInput: document.getElementById('input_iata'),
+    callsignInput: document.getElementById('input_callsign'),
+    origInput: document.getElementById('input_orig'),
+    destInput: document.getElementById('input_dest'),
+    statusDiv: document.getElementById('status'),
+    loadBtn: document.getElementById('btn_load'),
+    sendBtn: document.getElementById('btn_send')
+};
 
-        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-            if (!tabs[0] || !tabs[0].url.includes("flightradar24.com")) {
-                if(statusDiv) statusDiv.innerText = "Nicht FR24.";
-                return;
+// ============================================
+// DATA FETCHING
+// ============================================
+
+/**
+ * Check if current tab is on FlightRadar24
+ * @param {Object} tab - Chrome tab object
+ * @returns {boolean}
+ */
+function isFlightRadar24Tab(tab) {
+    return tab && tab.url && tab.url.includes("flightradar24.com");
+}
+
+/**
+ * Request flight data from content script
+ * @param {number} tabId - Tab ID
+ * @param {Function} callback - Callback with response
+ */
+function requestFlightData(tabId, callback) {
+    chrome.tabs.sendMessage(tabId, { action: "scrapeData" }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error("Message error:", chrome.runtime.lastError);
+            return;
+        }
+        callback(response);
+    });
+}
+
+/**
+ * Populate input fields with flight data
+ * @param {Object} data - Flight data object
+ */
+function populateFlightData(data) {
+    if (DOM.iataInput) DOM.iataInput.value = data.leftPart || "";
+    if (DOM.callsignInput) DOM.callsignInput.value = data.rightPart || "";
+    if (DOM.origInput) DOM.origInput.value = data.orig || "";
+    if (DOM.destInput) DOM.destInput.value = data.dest || "";
+}
+
+/**
+ * Fetch and display flight data from active tab
+ */
+function datenHolen() {
+    if (DOM.statusDiv) DOM.statusDiv.innerText = "Lese...";
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!isFlightRadar24Tab(tabs[0])) {
+            if (DOM.statusDiv) DOM.statusDiv.innerText = "Nicht FR24.";
+            return;
+        }
+
+        requestFlightData(tabs[0].id, (response) => {
+            if (response && response.success) {
+                populateFlightData(response.data);
+                if (DOM.statusDiv) DOM.statusDiv.innerText = "OK.";
             }
-
-            chrome.tabs.sendMessage(tabs[0].id, {action: "scrapeData"}, (response) => {
-                if (chrome.runtime.lastError) return;
-
-                if (response && response.success) {
-                    const d = response.data;
-                    if(iataInput) iataInput.value = d.leftPart || "";
-                    if(callsignInput) callsignInput.value = d.rightPart || "";
-                    if(origInput) origInput.value = d.orig || "";
-                    if(destInput) destInput.value = d.dest || "";
-                    if(statusDiv) statusDiv.innerText = "OK.";
-                }
-            });
         });
+    });
+}
+
+// ============================================
+// FORM SUBMISSION / SIMBRIEF LOGIC
+// ============================================
+
+/**
+ * Parse airline code and flight number from IATA
+ * @param {string} iataRaw - Raw IATA input (e.g., "LH2")
+ * @returns {Object} { airline, fltnum }
+ */
+function parseAirlineAndFlightNum(iataRaw) {
+    // Clean: remove non-alphanumeric, uppercase
+    const cleaned = iataRaw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+    // Match: letters at start (LH), numbers at end (2)
+    const match = cleaned.match(/^([A-Z]+)([0-9]+)$/);
+
+    if (match) {
+        return {
+            airline: match[1],  // "LH"
+            fltnum: match[2]    // "2"
+        };
     }
 
-    // Starten
+    // Fallback: entire cleaned string as airline
+    return {
+        airline: cleaned,
+        fltnum: ""
+    };
+}
+
+/**
+ * Clean callsign input
+ * @param {string} callsignRaw - Raw callsign (e.g., "DLH1TN")
+ * @returns {string} Cleaned callsign
+ */
+function cleanCallsign(callsignRaw) {
+    return callsignRaw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+/**
+ * Build SimBrief dispatch URL
+ * @param {Object} params - URL parameters
+ * @returns {string} Full URL
+ */
+function buildSimBriefUrl(params) {
+    let url = `https://www.simbrief.com/system/dispatch.php?new=1`;
+    url += `&airline=${encodeURIComponent(params.airline)}`;
+    url += `&fltnum=${encodeURIComponent(params.fltnum)}`;
+    url += `&callsign=${encodeURIComponent(params.atcCallsign)}`;
+    url += `&orig=${encodeURIComponent(params.orig)}`;
+    url += `&dest=${encodeURIComponent(params.dest)}`;
+    url += `&date=today`;
+    return url;
+}
+
+/**
+ * Validate required form inputs
+ * @param {string} orig - Origin airport
+ * @param {string} dest - Destination airport
+ * @returns {boolean}
+ */
+function validateInputs(orig, dest) {
+    if (!orig || !dest) {
+        alert("Start/Ziel fehlt.");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Handle send button click
+ */
+function handleSendClick() {
+    // Read form values
+    const iataRaw = DOM.iataInput.value.trim();
+    const callsignRaw = DOM.callsignInput.value.trim();
+    const orig = DOM.origInput.value.trim();
+    const dest = DOM.destInput.value.trim();
+
+    if (!validateInputs(orig, dest)) {
+        return;
+    }
+
+    // Parse airline and flight number
+    const { airline, fltnum } = parseAirlineAndFlightNum(iataRaw);
+    const atcCallsign = cleanCallsign(callsignRaw);
+
+    // Build URL
+    const sbUrl = buildSimBriefUrl({
+        airline,
+        fltnum,
+        atcCallsign,
+        orig,
+        dest
+    });
+
+    // Open in new tab
+    window.open(sbUrl, '_blank');
+}
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Load flight data on popup open
     datenHolen();
-    if(loadBtn) loadBtn.addEventListener('click', datenHolen);
 
-    // --- SENDE LOGIK ---
-    if (sendBtn) {
-        sendBtn.addEventListener('click', () => {
-            
-            // Werte auslesen
-            let iataRaw = iataInput.value.trim();      // "LH2"
-            let callsignRaw = callsignInput.value.trim(); // "DLH1TN"
-            const start = origInput.value.trim();
-            const ziel = destInput.value.trim();
+    // Load button listener
+    if (DOM.loadBtn) {
+        DOM.loadBtn.addEventListener('click', datenHolen);
+    }
 
-            if (!start || !ziel) {
-                alert("Start/Ziel fehlt.");
-                return;
-            }
-
-            // 1. Airline & Flugnummer aus IATA (LH2)
-            let airline = "";
-            let fltnum = "";
-
-            // Alles außer Buchstaben und Zahlen weg, Großbuchstaben
-            iataRaw = iataRaw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-
-            // Match: Buchstaben am Anfang (LH), Zahlen am Ende (2)
-            const match = iataRaw.match(/^([A-Z]+)([0-9]+)$/);
-
-            if (match) {
-                airline = match[1]; // LH
-                fltnum = match[2];  // 2
-            } else {
-                // Fallback (z.B. nur "LH" oder "GEC")
-                airline = iataRaw;
-                fltnum = ""; 
-            }
-
-            // 2. Callsign reinigen (DLH1TN)
-            let atcCallsign = callsignRaw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-
-            // 3. URL
-            let sbUrl = `https://www.simbrief.com/system/dispatch.php?new=1`;
-            sbUrl += `&airline=${encodeURIComponent(airline)}`;
-            sbUrl += `&fltnum=${encodeURIComponent(fltnum)}`;
-            sbUrl += `&callsign=${encodeURIComponent(atcCallsign)}`;
-            sbUrl += `&orig=${encodeURIComponent(start)}`;
-            sbUrl += `&dest=${encodeURIComponent(ziel)}`;
-            sbUrl += `&date=today`; 
-
-            // Öffnen
-            window.open(sbUrl, '_blank');
-        });
+    // Send button listener
+    if (DOM.sendBtn) {
+        DOM.sendBtn.addEventListener('click', handleSendClick);
     } else {
-        console.error("FEHLER: Button 'btn_send' nicht im HTML gefunden!");
+        console.error("ERROR: Button 'btn_send' not found in HTML!");
     }
 });

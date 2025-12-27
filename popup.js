@@ -192,3 +192,18 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error("ERROR: Button 'btn_send' not found in HTML!");
     }
 });
+
+// Export functions for testing (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        isFlightRadar24Tab,
+        requestFlightData,
+        populateFlightData,
+        datenHolen,
+        parseAirlineAndFlightNum,
+        cleanCallsign,
+        buildSimBriefUrl,
+        validateInputs,
+        handleSendClick
+    };
+}

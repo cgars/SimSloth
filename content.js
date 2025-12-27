@@ -73,3 +73,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
     }
 });
+
+// Export functions for testing (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        getFlightIdentifiers,
+        getAirportCode,
+        scrapeFlightData
+    };
+}

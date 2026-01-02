@@ -124,7 +124,28 @@ function buildSimBriefUrl(params) {
     url += `&orig=${encodeURIComponent(params.orig)}`;
     url += `&dest=${encodeURIComponent(params.dest)}`;
     url += `&date=today`;
+
+    // Add departure date/time: default to 1 hour from now if not provided
+    const departure = params.departureDatetime || computeDepartureDateTime();
+    if (departure && departure.date && departure.time) {
+        url += `&dep_date=${encodeURIComponent(departure.date)}`;
+        url += `&dep_time=${encodeURIComponent(departure.time)}`;
+    }
     return url;
+}
+
+/**
+ * Compute departure datetime 1 hour from now.
+ * Returns { date: 'YYYY-MM-DD', time: 'HHMM' }
+ */
+function computeDepartureDateTime() {
+    const d = new Date(Date.now() + 60 * 60 * 1000);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}${min}` };
 }
 
 /**
@@ -203,6 +224,7 @@ if (typeof module !== 'undefined' && module.exports) {
         parseAirlineAndFlightNum,
         cleanCallsign,
         buildSimBriefUrl,
+        computeDepartureDateTime,
         validateInputs,
         handleSendClick
     };

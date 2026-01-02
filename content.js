@@ -63,16 +63,18 @@ function scrapeFlightData() {
 // MESSAGE LISTENER
 // ============================================
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "scrapeData") {
-        try {
-            const flightData = scrapeFlightData();
-            sendResponse({ success: true, data: flightData });
-        } catch (error) {
-            sendResponse({ success: false, error: error.message });
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage && chrome.runtime.onMessage.addListener) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === "scrapeData") {
+            try {
+                const flightData = scrapeFlightData();
+                sendResponse({ success: true, data: flightData });
+            } catch (error) {
+                sendResponse({ success: false, error: error.message });
+            }
         }
-    }
-});
+    });
+}
 
 // Export functions for testing (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
